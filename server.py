@@ -13,6 +13,9 @@ class ClientListener(Thread):
         self.sock = sock
         self.name = name
         self.filename_known = False
+        self.filename_buffer = ''
+        self.final_filename = ''
+        self.filedata_buffer = b''
 
     def _close(self):
         clients.remove(self.sock)
@@ -20,33 +23,55 @@ class ClientListener(Thread):
         print(self.name + ' disconnected')
 
     def run(self):
-        if not filename_known:
-            filename_buffer = ''
+        if not self.filename_known:
+
             name_data = self.sock.recv(1024)
+
             if name_data:
                 # write filename to temporary buffer
 
-                filename_buffer += name_data.decode()
+                self.filename_buffer += name_data.decode()
             else:
-                filename_known = True
-                print('Filename is ' + filename_buffer)
+
+                self.filename_known = True
+                print('Filename is ' + self.filename_buffer)
             
-                if filename_buffer in files:
+                if self.filename_buffer in files:
+
                     print('Collision occured!')
-                    i = len(filename_buffer) - 1
-                    while not filename_buffer[i] == '.':
+                    i = len(self.filename_buffer) - 1
+
+                    while not self.filename_buffer[i] == '.':
+                        if i == 0:
+                            break
                         i -= 1
-                    file_name = filename_buffer[:i]
-                    file_extension = filename_buffer[i:]
+                    
+                    file_name = ''
+                    file_extension = ''
+                    
+                    if i == 0:
+                        file_name = self.filename_buffer
+                        file_extension = ''
+                    else:
+                        file_name = self.filename_buffer[:i]
+                        file_extension = self.filename_buffer[i:]
+
                     copy_num = 1
+
                     while not file_name + '_copy' + str(copy_num) + file_extension in files:
                         copy_num += 1
-                    files.append(file_name + '_copy' + str(copy_num) + file_extension)
+
+                    self.final_filename = file_name + '_copy' + str(copy_num) + file_extension
+
+                    files.append(self.final_filename)
+                    print('New file name is ' + self.final_filename)
                 else:
+
                     print('No collision occured.')
-                    files.append(filename_buffer)
+                    files.append(self.filename_buffer)
         else:
             # send 'accept' message to the client and wait for the file
+
             accept_data = 'filename_accepted'.encode()
             for u in clients:
                 if u == self.sock:
@@ -55,12 +80,19 @@ class ClientListener(Thread):
             file_data = self.sock.recv(1024)
             
             if file_data:
-                # write to the file
+                self.filedata_buffer += file_data
             else:
+                f = open(self.final_filename, 'wb+')
+                f.write(self.filedata_buffer)
+                f.close()
+                print('File ' + self.final_filename + ' was received.')
                 self._close()
                 return
 
 def main():
+
+    print('Server is ready for users')
+
     next_name = 1
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
