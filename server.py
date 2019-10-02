@@ -3,7 +3,7 @@ import socket
 from threading import Thread
 
 
-files = []
+files = [] # Used to track received files
 clients = []
 
 
@@ -12,10 +12,10 @@ class ClientListener(Thread):
         super().__init__(daemon=True)
         self.sock = sock
         self.name = name
-        self.filename_known = False
-        self.filename_buffer = ''
-        self.final_filename = ''
-        self.filedata_buffer = b''
+        self.filename_known = False # Whether we have filename already or not
+        self.filename_buffer = ''  # Used to retrieve filename from a client
+        self.final_filename = '' # Used to overcome collision issues
+        self.filedata_buffer = b'' # Used to fill the file on the server's machine
 
     def _close(self):
         clients.remove(self.sock)
@@ -24,17 +24,19 @@ class ClientListener(Thread):
 
     def run(self):
         while True:
+            # Retrieve filename if we still don't know it 
             if not self.filename_known:
                 
-                name_data = self.sock.recv(1024)
+                name_data = self.sock.recv(1024) # Clients send exactly 1024 bytes to not overlap with the file bytes
                 self.filename_buffer += name_data.decode()
-                self.filename_buffer.replace('?', '')
+                self.filename_buffer.replace('?', '') # Delete unnesessary characters
 
                 self.filename_known = True
                 print('Filename is ' + self.filename_buffer)
             
-                self.sock.sendall('1'.encode())                
+                self.sock.sendall('1'.encode()) # Send the 'accept' message               
 
+                # Check that we already have the file with this name
                 if self.filename_buffer in files:
 
                     print('Collision occured!')
@@ -59,23 +61,27 @@ class ClientListener(Thread):
 
                     while (file_name + '_copy' + str(copy_num) + file_extension) in files:
                         copy_num += 1
-
+                    
+                    # Set the new name 
                     self.final_filename = file_name + '_copy' + str(copy_num) + file_extension
-
+                    
+                    # Add the final name to the list of known files
                     files.append(self.final_filename)
                     print('New file name is ' + self.final_filename)
                 else:
-
+                    # Proceed if no collision
                     print('No collision occured.')
                     files.append(self.filename_buffer)
                     self.final_filename = self.filename_buffer
             else:
-
-                file_data = self.sock.recv(1)
+                
+                # Receive group of 64 bytes
+                file_data = self.sock.recv(64)
                 
                 if file_data:
                     self.filedata_buffer += file_data
                 else:
+                    # Create new file and fill it with the data that was received
                     f = open(self.final_filename, 'wb+')
                     f.write(self.filedata_buffer)
                     f.close()
