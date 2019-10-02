@@ -23,20 +23,17 @@ class ClientListener(Thread):
         print(self.name + ' disconnected')
 
     def run(self):
-        if not self.filename_known:
-
-            name_data = self.sock.recv(1024)
-
-            if name_data:
-                # write filename to temporary buffer
-
+        while True:
+            if not self.filename_known:
+                
+                name_data = self.sock.recv(1024)
                 self.filename_buffer += name_data.decode()
-            else:
+                self.filename_buffer.replace('?', '')
 
                 self.filename_known = True
                 print('Filename is ' + self.filename_buffer)
             
-                self.sock.sendall('filename_accepted'.encode())                
+                self.sock.sendall('1'.encode())                
 
                 if self.filename_buffer in files:
 
@@ -47,10 +44,10 @@ class ClientListener(Thread):
                         if i == 0:
                             break
                         i -= 1
-                    
+                        
                     file_name = ''
                     file_extension = ''
-                    
+                        
                     if i == 0:
                         file_name = self.filename_buffer
                         file_extension = ''
@@ -60,7 +57,7 @@ class ClientListener(Thread):
 
                     copy_num = 1
 
-                    while not file_name + '_copy' + str(copy_num) + file_extension in files:
+                    while (file_name + '_copy' + str(copy_num) + file_extension) in files:
                         copy_num += 1
 
                     self.final_filename = file_name + '_copy' + str(copy_num) + file_extension
@@ -71,19 +68,20 @@ class ClientListener(Thread):
 
                     print('No collision occured.')
                     files.append(self.filename_buffer)
-        else:
-
-            file_data = self.sock.recv(1024)
-            
-            if file_data:
-                self.filedata_buffer += file_data
+                    self.final_filename = self.filename_buffer
             else:
-                f = open(self.final_filename, 'wb+')
-                f.write(self.filedata_buffer)
-                f.close()
-                print('File ' + self.final_filename + ' from ' + name + ' was received.')
-                self._close()
-                return
+
+                file_data = self.sock.recv(1)
+                
+                if file_data:
+                    self.filedata_buffer += file_data
+                else:
+                    f = open(self.final_filename, 'wb+')
+                    f.write(self.filedata_buffer)
+                    f.close()
+                    print('File ' + self.final_filename + ' from ' + self.name + ' was received.')
+                    self._close()
+                    return
 
 def main():
 
