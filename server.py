@@ -36,6 +36,8 @@ class ClientListener(Thread):
                 self.filename_known = True
                 print('Filename is ' + self.filename_buffer)
             
+                self.sock.sendall('filename_accepted'.encode())                
+
                 if self.filename_buffer in files:
 
                     print('Collision occured!')
@@ -70,12 +72,6 @@ class ClientListener(Thread):
                     print('No collision occured.')
                     files.append(self.filename_buffer)
         else:
-            # send 'accept' message to the client and wait for the file
-
-            accept_data = 'filename_accepted'.encode()
-            for u in clients:
-                if u == self.sock:
-                    u.sendall(accept_data)   
 
             file_data = self.sock.recv(1024)
             
@@ -85,7 +81,7 @@ class ClientListener(Thread):
                 f = open(self.final_filename, 'wb+')
                 f.write(self.filedata_buffer)
                 f.close()
-                print('File ' + self.final_filename + ' was received.')
+                print('File ' + self.final_filename + ' from ' + name + ' was received.')
                 self._close()
                 return
 
